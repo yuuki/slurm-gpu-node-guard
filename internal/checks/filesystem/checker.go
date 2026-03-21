@@ -21,7 +21,9 @@ var defaultBlockErrorPatterns = []string{
 	"i/o error",
 	"critical medium error",
 	"ext4-fs error",
-	"xfs",
+	"xfs error",
+	"xfs_alert",
+	"xfs_buf_ioerror",
 }
 
 // Config configures filesystem checks.
@@ -170,6 +172,10 @@ func isReadOnlyMount(output string) bool {
 }
 
 func matchPatterns(output string, patterns []string) []string {
+	lowerPatterns := make([]string, len(patterns))
+	for i, p := range patterns {
+		lowerPatterns[i] = strings.ToLower(p)
+	}
 	matches := make([]string, 0)
 	for _, line := range strings.Split(output, "\n") {
 		trimmed := strings.TrimSpace(line)
@@ -177,8 +183,8 @@ func matchPatterns(output string, patterns []string) []string {
 			continue
 		}
 		lowerLine := strings.ToLower(trimmed)
-		for _, pattern := range patterns {
-			if strings.Contains(lowerLine, strings.ToLower(pattern)) {
+		for _, pattern := range lowerPatterns {
+			if strings.Contains(lowerLine, pattern) {
 				matches = append(matches, trimmed)
 				break
 			}
