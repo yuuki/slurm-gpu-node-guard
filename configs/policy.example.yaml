@@ -2,10 +2,10 @@ socket_path: /tmp/slurm-gpu-node-guard.sock
 
 plugins:
   - name: gpu-presence
-    path: ./examples/plugins/check_gpu_presence.sh
+    path: /usr/local/libexec/slurm-gpu-node-guard/guard-plugin-gpu
     phases: [prolog]
   - name: rdma-link
-    path: ./examples/plugins/check_rdma_link.sh
+    path: /usr/local/libexec/slurm-gpu-node-guard/guard-plugin-rdma
     phases: [prolog, epilog]
 
 check_timeouts:
@@ -52,4 +52,3 @@ notifications:
     default:
       webhook:
         url: http://127.0.0.1:8080/alerts
-
