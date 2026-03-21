@@ -136,7 +136,8 @@ func runChecks(logger *slog.Logger, args []string) int {
 		logger.Error("create engine failed", "error", err)
 		return 1
 	}
-	results, err := eng.RunChecks(context.Background(), model.Phase(*phase), lifecycleJobContext(), model.NodeContext{Name: nodeName()})
+	node := nodeName()
+	results, err := eng.RunChecks(context.Background(), model.Phase(*phase), lifecycleJobContext(node), model.NodeContext{Name: node})
 	if err != nil {
 		logger.Error("run checks failed", "error", err)
 		return 1
@@ -182,21 +183,22 @@ func reportEvent(args []string) int {
 }
 
 func lifecycleInput(phase model.Phase) model.EvaluationInput {
+	node := nodeName()
 	return model.EvaluationInput{
 		Phase: phase,
-		Job:   lifecycleJobContext(),
-		Node:  model.NodeContext{Name: nodeName()},
+		Job:   lifecycleJobContext(node),
+		Node:  model.NodeContext{Name: node},
 	}
 }
 
-func lifecycleJobContext() model.JobContext {
+func lifecycleJobContext(node string) model.JobContext {
 	exitCode := 0
 	if raw := os.Getenv("SLURM_JOB_EXIT_CODE"); raw != "" {
 		fmt.Sscanf(raw, "%d", &exitCode)
 	}
 	return model.JobContext{
 		ID:         os.Getenv("SLURM_JOB_ID"),
-		NodeName:   nodeName(),
+		NodeName:   node,
 		Cluster:    os.Getenv("SLURM_CLUSTER_NAME"),
 		User:       os.Getenv("SLURM_JOB_USER"),
 		ExitCode:   exitCode,
