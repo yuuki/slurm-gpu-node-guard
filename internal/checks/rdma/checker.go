@@ -153,7 +153,7 @@ func parseIBStat(output string) (ibstatSummary, error) {
 }
 
 func isActivePort(port portStatus) bool {
-	return strings.EqualFold(strings.TrimSpace(port.state), "active") &&
-		(strings.EqualFold(strings.TrimSpace(port.physical), "linkup") || strings.EqualFold(strings.TrimSpace(port.physical), "active"))
+	return strings.EqualFold(port.state, "active") &&
+		(strings.EqualFold(port.physical, "linkup") || strings.EqualFold(port.physical, "active"))
 }
 

@@ -239,12 +239,10 @@ func countGPUs(output string) int {
 }
 
 func isUnsupportedState(value string) bool {
-	value = strings.TrimSpace(strings.ToLower(value))
 	return value == "" || value == "n/a" || strings.Contains(value, "not supported")
 }
 
 func isDownState(value string) bool {
-	value = strings.TrimSpace(strings.ToLower(value))
 	return strings.Contains(value, "down") || strings.Contains(value, "inactive") || strings.Contains(value, "disabled") || strings.Contains(value, "failure") || strings.Contains(value, "failed") || strings.Contains(value, "error")
 }
 
