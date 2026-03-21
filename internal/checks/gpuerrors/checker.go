@@ -224,13 +224,14 @@ func parseXIDs(output string) []int {
 	codes := make([]int, 0)
 	seen := map[int]struct{}{}
 	for _, line := range strings.Split(output, "\n") {
-		if !strings.Contains(strings.ToLower(line), "xid") {
+		lowerLine := strings.ToLower(line)
+		if !strings.Contains(lowerLine, "xid") {
 			continue
 		}
 		candidate := line
 		if idx := strings.LastIndex(candidate, "):"); idx >= 0 {
 			candidate = candidate[idx+2:]
-		} else if idx := strings.LastIndex(strings.ToLower(candidate), "xid"); idx >= 0 {
+		} else if idx := strings.LastIndex(lowerLine, "xid"); idx >= 0 {
 			candidate = candidate[idx+3:]
 		}
 		match := xidTailPattern.FindStringSubmatch(candidate)
@@ -283,8 +284,6 @@ func classifyXIDs(xids []int, cfg Config) ([]int, []int) {
 			fail = append(fail, code)
 		case slices.Contains(cfg.XIDFailCodes, code):
 			fail = append(fail, code)
-		case len(cfg.XIDWarnCodes) > 0 && slices.Contains(cfg.XIDWarnCodes, code):
-			warn = append(warn, code)
 		default:
 			fail = append(fail, code)
 		}
