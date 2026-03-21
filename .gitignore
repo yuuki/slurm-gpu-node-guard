@@ -1,2 +1,7 @@
 guardctl
 guardd
+guard-plugin-filesystem
+guard-plugin-gpu
+guard-plugin-gpu-errors
+guard-plugin-rdma
+guard-plugin-service
