@@ -1,27 +1,27 @@
 # slurm-gpu-node-guard
 
-`slurm-gpu-node-guard` は Slurm GPU クラスタ向けのノードローカル健全性ガードです。`guardctl` を Slurm `Prolog`/`Epilog` から呼び出し、`guardd` を各ノードで常駐させることで、軽量なジョブ開始前チェック、ジョブ終了時 cleanup、構造化通知、`drain`/`requeue` を一貫した意味論で扱います。
+`slurm-gpu-node-guard` is a node-local health guard for Slurm-based GPU clusters. It runs `guardctl` from Slurm `Prolog`/`Epilog` hooks and keeps `guardd` resident on each node, providing lightweight pre-job checks, post-job cleanup, structured notifications, and consistent `drain`/`requeue` semantics.
 
-## 設計の要点
+## Design Principles
 
-- 低遅延 Prolog: 各プラグインは phase ごとの timeout 付きで並列実行されます。
-- failure semantics の分離: プラグインは事実を返し、最終 verdict は YAML policy が決めます。
-- 厳格な requeue 境界: `block_drain_requeue` は `infra_evidence=true` のときだけ成立します。
-- fail-open: daemon 不達や内部エラー時は `allow_alert` に落とし、guard 自身の故障でクラスター全体を止めません。
-- OSS 拡張性: チェックは外部実行プラグインとして追加できます。
+- **Low-latency Prolog**: Plugins run concurrently with per-phase timeouts.
+- **Separation of failure semantics**: Plugins report facts; the final verdict is determined by YAML policy.
+- **Strict requeue boundary**: `block_drain_requeue` only applies when `infra_evidence=true`.
+- **Fail-open**: When the daemon is unreachable or an internal error occurs, the system falls back to `allow_alert` so the guard itself never blocks the entire cluster.
+- **OSS extensibility**: Checks can be added as external executable plugins.
 
-## コンポーネント
+## Components
 
-- `cmd/guardctl`: `prolog`、`epilog`、`check run`、`report event`
-- `cmd/guardd`: UNIX domain socket 経由のローカル evaluate API
-- `internal/policy`: `pass|warn|fail|error` から verdict への写像
-- `internal/plugin`: 外部プラグイン JSON 契約
-- `internal/slurm`: `scontrol` による `drain`/`requeue`
-- `internal/notify`: webhook / コマンド通知
+- `cmd/guardctl`: `prolog`, `epilog`, `check run`, `report event`
+- `cmd/guardd`: Local evaluation API over a UNIX domain socket
+- `internal/policy`: Maps `pass|warn|fail|error` to verdicts
+- `internal/plugin`: External plugin JSON contract
+- `internal/slurm`: `drain`/`requeue` via `scontrol`
+- `internal/notify`: Webhook and command-based notifications
 
-## プラグイン契約
+## Plugin Contract
 
-plugin には stdin JSON で次を渡します。
+Plugins receive a JSON request on stdin:
 
 ```json
 {
@@ -39,7 +39,7 @@ plugin には stdin JSON で次を渡します。
 }
 ```
 
-plugin は stdout JSON で次を返します。
+Plugins return a JSON response on stdout:
 
 ```json
 {
@@ -52,13 +52,13 @@ plugin は stdout JSON で次を返します。
 }
 ```
 
-非 0 exit は plugin 内部 error として `status=error` に変換されます。
+A non-zero exit code is treated as an internal plugin error and converted to `status=error`.
 
-## 設定
+## Configuration
 
-サンプルは [configs/policy.example.yaml](/Users/y-tsubouchi/src/github.com/yuuki/slurm-gpu-node-guard/configs/policy.example.yaml) を参照してください。policy では phase timeout、failure-domain ごとの verdict、drain reason template、通知先を定義します。
+See [configs/policy.example.yaml](configs/policy.example.yaml) for a sample configuration. The policy defines per-phase timeouts, per-failure-domain verdicts, drain reason templates, and notification receivers.
 
-## 使い方
+## Usage
 
 ```bash
 go build ./cmd/guardctl
@@ -73,8 +73,8 @@ go build ./cmd/guardd
 
 ## OpenTelemetry
 
-`SGNG_OTEL_STDOUT=true` を設定すると、trace / metric を stdout exporter で出力します。未設定時は OTel provider を初期化しません。
+Set `SGNG_OTEL_STDOUT=true` to emit traces and metrics via the stdout exporter. When unset, no OTel provider is initialized.
 
-## 参考
+## References
 
 - [HPCA2025] Revisiting Reliability in Large-Scale Machine Learning Research Clusters

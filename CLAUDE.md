@@ -4,77 +4,77 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Slurm GPU クラスタ向けのノードローカル健全性ガード。Slurm の Prolog/Epilog フックからプラグインベースのヘルスチェックを実行し、YAML ポリシーに基づいて drain/requeue を自動判定する。
+A node-local health guard for Slurm-based GPU clusters. It runs plugin-based health checks from Slurm Prolog/Epilog hooks and automatically determines drain/requeue actions based on YAML policy.
 
 ## Build & Test
 
 ```bash
-# ビルド
+# Build
 go build ./cmd/guardd
 go build ./cmd/guardctl
 
-# テスト (全体)
+# Run all tests
 go test ./...
 
-# 単一パッケージのテスト
+# Run tests for a single package
 go test ./internal/policy/
 go test ./internal/plugin/ -run TestRunnerTimeout
 
-# vet
+# Vet
 go vet ./...
 ```
 
-Makefile や CI 設定は未整備。`go build` / `go test` が基本コマンド。
+No Makefile or CI pipeline yet. `go build` and `go test` are the primary commands.
 
 ## Architecture
 
-2つの実行バイナリと6つの internal パッケージで構成される。
+The project consists of two executables and several internal packages.
 
 ### Executables
 
-- **`cmd/guardd`** — UNIX domain socket 上で HTTP API (`/v1/evaluate`, `/healthz`) を提供するノードローカルデーモン
-- **`cmd/guardctl`** — Slurm Prolog/Epilog から呼ばれる CLI。サブコマンド: `prolog`, `epilog`, `check run`, `report event`
+- **`cmd/guardd`** — Node-local daemon serving an HTTP API (`/v1/evaluate`, `/healthz`) over a UNIX domain socket
+- **`cmd/guardctl`** — CLI invoked by Slurm Prolog/Epilog. Subcommands: `prolog`, `epilog`, `check run`, `report event`
 
 ### Internal packages
 
-- **`engine`** — プラグイン実行とポリシー評価を統合するオーケストレータ。プラグインは goroutine で並列実行され、phase timeout で制限される
-- **`policy`** — CheckResult (pass/warn/fail/error) を Verdict (allow/allow_alert/drain_after_job/block_drain/block_drain_requeue) に変換。verdict は priority 順で最も重い結果が採用される
-- **`plugin`** — 外部実行ファイルを subprocess で実行し、stdin JSON → stdout JSON 契約でやりとりする Runner
-- **`slurm`** — `scontrol` による drain/requeue。冪等性を保証（already applied は非致命エラー）
-- **`notify`** — webhook または外部コマンドによる通知ディスパッチ
-- **`config`** — YAML 設定ロード。`policy.Policy` + `notify.Config` + プラグイン定義を統合
-- **`app`** — daemon-first / local-fallback の評価フロー (`EvaluateWithFallback`)
-- **`model`** — 全パッケージが共有する型定義 (Phase, CheckStatus, Verdict, FailureDomain 等)
-- **`telemetry`** — OTel provider の初期化 (`SGNG_OTEL_STDOUT=true` で有効化)
-- **`daemon`** — Server (UNIX socket HTTP) と Client (daemon 通信) の両方を含む
+- **`engine`** — Orchestrator that integrates plugin execution and policy evaluation. Plugins run concurrently in goroutines, bounded by per-phase timeouts
+- **`policy`** — Converts CheckResult (pass/warn/fail/error) into Verdict (allow/allow_alert/drain_after_job/block_drain/block_drain_requeue). The highest-priority verdict wins
+- **`plugin`** — Runner that executes external binaries as subprocesses using a stdin JSON / stdout JSON contract
+- **`slurm`** — Drain/requeue via `scontrol`. Idempotent: "already applied" conditions are treated as non-fatal
+- **`notify`** — Dispatches notifications via webhooks or external commands
+- **`config`** — Loads YAML configuration, combining `policy.Policy`, `notify.Config`, and plugin definitions
+- **`app`** — Daemon-first / local-fallback evaluation flow (`EvaluateWithFallback`)
+- **`model`** — Shared type definitions (Phase, CheckStatus, Verdict, FailureDomain, etc.)
+- **`telemetry`** — OTel provider initialization (enabled with `SGNG_OTEL_STDOUT=true`)
+- **`daemon`** — Contains both the Server (UNIX socket HTTP) and Client (daemon communication)
 
 ### Key data flow
 
 ```
 guardctl prolog
-  → config.Load
-  → daemon.Client.Evaluate (失敗時 → engine.Evaluate にフォールバック)
-    → engine.RunChecks (外部プラグイン並列実行)
-    → policy.Evaluate (CheckResult[] → EvaluationDecision)
-  → slurm.ApplyDecision (drain/requeue)
-  → notify.Manager.Notify
+  -> config.Load
+  -> daemon.Client.Evaluate (falls back to engine.Evaluate on failure)
+    -> engine.RunChecks (concurrent external plugin execution)
+    -> policy.Evaluate (CheckResult[] -> EvaluationDecision)
+  -> slurm.ApplyDecision (drain/requeue)
+  -> notify.Manager.Notify
 ```
 
 ### Critical invariants
 
-- **fail-open**: daemon 不達・内部エラー時は `allow_alert` にフォールバック。guard 故障でクラスタを止めない
-- **requeue boundary**: `block_drain_requeue` は `infra_evidence=true` のときだけ成立。証拠なしなら `block_drain` に降格
-- **冪等性**: Slurm アクション (drain/requeue) は既適用状態を非致命エラーとして扱う
+- **Fail-open**: Falls back to `allow_alert` when the daemon is unreachable or an internal error occurs. The guard never blocks the cluster due to its own failure
+- **Requeue boundary**: `block_drain_requeue` requires `infra_evidence=true`. Without evidence, it downgrades to `block_drain`
+- **Idempotency**: Slurm actions (drain/requeue) treat "already applied" states as non-fatal errors
 
 ## Configuration
 
-サンプル: `configs/policy.example.yaml`。主要セクション:
-- `socket_path` — daemon の UNIX socket パス
-- `plugins` — name, path, phases を定義
-- `check_timeouts` — phase ごとのプラグイン実行タイムアウト
-- `domains` — failure domain ごとの severity, verdict マッピング, drain reason template
-- `notifications.receivers` — webhook URL またはコマンド
+Sample: `configs/policy.example.yaml`. Key sections:
+- `socket_path` — UNIX socket path for the daemon
+- `plugins` — Plugin name, path, and phases
+- `check_timeouts` — Per-phase plugin execution timeouts
+- `domains` — Per-failure-domain severity, verdict mappings, and drain reason templates
+- `notifications.receivers` — Webhook URLs or commands
 
 ## Commit style
 
-短いスコープ付き subject を使う: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`
+Use short, scoped subjects: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`
