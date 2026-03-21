@@ -91,3 +91,11 @@ func CommandErrorSummary(stderr string, err error) string {
 	}
 	return err.Error()
 }
+
+func ValueAfterColon(line string) string {
+	parts := strings.SplitN(line, ":", 2)
+	if len(parts) != 2 {
+		return ""
+	}
+	return strings.TrimSpace(parts[1])
+}

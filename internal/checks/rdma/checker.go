@@ -136,12 +136,12 @@ func parseIBStat(output string) (ibstatSummary, error) {
 			if current == nil {
 				current = &portStatus{}
 			}
-			current.state = valueAfterColon(line)
+			current.state = checkplugin.ValueAfterColon(line)
 		case strings.HasPrefix(lowerLine, "physical state:"):
 			if current == nil {
 				current = &portStatus{}
 			}
-			current.physical = valueAfterColon(line)
+			current.physical = checkplugin.ValueAfterColon(line)
 		}
 	}
 	finalize()
@@ -157,10 +157,3 @@ func isActivePort(port portStatus) bool {
 		(strings.EqualFold(strings.TrimSpace(port.physical), "linkup") || strings.EqualFold(strings.TrimSpace(port.physical), "active"))
 }
 
-func valueAfterColon(line string) string {
-	parts := strings.SplitN(line, ":", 2)
-	if len(parts) != 2 {
-		return ""
-	}
-	return strings.TrimSpace(parts[1])
-}

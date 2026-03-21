@@ -193,10 +193,10 @@ func parseFabricStatus(output string) (statusSummary, error) {
 		}
 		lower := strings.ToLower(trimmed)
 		if strings.HasPrefix(lower, "state") {
-			current.state = valueAfterColon(trimmed)
+			current.state = checkplugin.ValueAfterColon(trimmed)
 		}
 		if strings.HasPrefix(lower, "status") {
-			current.status = valueAfterColon(trimmed)
+			current.status = checkplugin.ValueAfterColon(trimmed)
 		}
 	}
 	flush()
@@ -246,14 +246,6 @@ func isUnsupportedState(value string) bool {
 func isDownState(value string) bool {
 	value = strings.TrimSpace(strings.ToLower(value))
 	return strings.Contains(value, "down") || strings.Contains(value, "inactive") || strings.Contains(value, "disabled") || strings.Contains(value, "failure") || strings.Contains(value, "failed") || strings.Contains(value, "error")
-}
-
-func valueAfterColon(line string) string {
-	parts := strings.SplitN(line, ":", 2)
-	if len(parts) != 2 {
-		return ""
-	}
-	return strings.TrimSpace(parts[1])
 }
 
 func errorResult(summary string) model.CheckResult {
