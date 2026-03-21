@@ -38,8 +38,8 @@ func Evaluate(input model.EvaluationInput) (model.EvaluationDecision, error) {
 	for _, result := range input.CheckResults {
 		candidate := evaluateResult(input.Phase, p, result)
 		if verdictPriority(candidate.Verdict) > verdictPriority(decision.Verdict) {
+			candidate.Results = input.CheckResults
 			decision = candidate
-			decision.Results = input.CheckResults
 			continue
 		}
 		if verdictPriority(candidate.Verdict) == verdictPriority(decision.Verdict) {
