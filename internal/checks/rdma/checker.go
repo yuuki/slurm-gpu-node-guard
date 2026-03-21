@@ -24,24 +24,12 @@ func (c Checker) Check(ctx context.Context, _ plugin.Input) model.CheckResult {
 
 	output, stderr, err := runner.Run(ctx, "ibstat")
 	if err != nil {
-		return model.CheckResult{
-			CheckName:       CheckName,
-			Status:          model.StatusError,
-			FailureDomain:   model.DomainRuntime,
-			Summary:         checkplugin.CommandErrorSummary(stderr, err),
-			StructuredCause: "ibstat_failed",
-		}
+		return errorResult(checkplugin.CommandErrorSummary(stderr, err))
 	}
 
 	summary, err := parseIBStat(output)
 	if err != nil {
-		return model.CheckResult{
-			CheckName:       CheckName,
-			Status:          model.StatusError,
-			FailureDomain:   model.DomainRuntime,
-			Summary:         err.Error(),
-			StructuredCause: "ibstat_failed",
-		}
+		return errorResult(err.Error())
 	}
 
 	details := map[string]any{
@@ -155,5 +143,15 @@ func parseIBStat(output string) (ibstatSummary, error) {
 func isActivePort(port portStatus) bool {
 	return strings.EqualFold(port.state, "active") &&
 		(strings.EqualFold(port.physical, "linkup") || strings.EqualFold(port.physical, "active"))
+}
+
+func errorResult(summary string) model.CheckResult {
+	return model.CheckResult{
+		CheckName:       CheckName,
+		Status:          model.StatusError,
+		FailureDomain:   model.DomainRuntime,
+		Summary:         summary,
+		StructuredCause: "ibstat_failed",
+	}
 }
 
