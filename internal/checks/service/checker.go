@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -118,11 +119,11 @@ func (c Checker) Check(ctx context.Context, input plugin.Input) model.CheckResul
 func inspectService(ctx context.Context, runner checkplugin.CommandRunner, serviceName string) (serviceState, error) {
 	output, stderr, err := runner.Run(ctx, "systemctl", "show", serviceName, "--property=LoadState", "--property=ActiveState", "--property=SubState")
 	if err != nil && strings.TrimSpace(output) == "" {
-		return serviceState{}, fmt.Errorf("%s", checkplugin.CommandErrorSummary(stderr, err))
+		return serviceState{}, errors.New(checkplugin.CommandErrorSummary(stderr, err))
 	}
 	state := parseServiceState(output)
 	if state.LoadState == "" && err != nil {
-		return serviceState{}, fmt.Errorf("%s", checkplugin.CommandErrorSummary(stderr, err))
+		return serviceState{}, errors.New(checkplugin.CommandErrorSummary(stderr, err))
 	}
 	return state, nil
 }
