@@ -1,0 +1,55 @@
+socket_path: /tmp/slurm-gpu-node-guard.sock
+
+plugins:
+  - name: gpu-presence
+    path: ./examples/plugins/check_gpu_presence.sh
+    phases: [prolog]
+  - name: rdma-link
+    path: ./examples/plugins/check_rdma_link.sh
+    phases: [prolog, epilog]
+
+check_timeouts:
+  prolog: 1500ms
+  epilog: 3s
+
+domains:
+  gpu:
+    severity: critical
+    require_infra_evidence: true
+    drain_reason_template: "gpu unhealthy: {{ .Summary }}"
+    on_warn:
+      prolog: allow_alert
+      epilog: drain_after_job
+    on_fail:
+      prolog: block_drain_requeue
+      epilog: block_drain_requeue
+    notification_receivers: [default]
+  rdma:
+    severity: deferred
+    require_infra_evidence: false
+    drain_reason_template: "rdma degraded: {{ .Summary }}"
+    on_warn:
+      prolog: allow_alert
+      epilog: drain_after_job
+    on_fail:
+      prolog: block_drain
+      epilog: drain_after_job
+    notification_receivers: [default]
+  filesystem:
+    severity: critical
+    require_infra_evidence: true
+    drain_reason_template: "filesystem unhealthy: {{ .Summary }}"
+    on_warn:
+      prolog: allow_alert
+      epilog: drain_after_job
+    on_fail:
+      prolog: block_drain_requeue
+      epilog: block_drain_requeue
+    notification_receivers: [default]
+
+notifications:
+  receivers:
+    default:
+      webhook:
+        url: http://127.0.0.1:8080/alerts
+
