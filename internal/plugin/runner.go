@@ -12,8 +12,10 @@ import (
 	"github.com/yuuki/slurm-gpu-node-guard/internal/model"
 )
 
+// Runner executes external check plugins as child processes.
 type Runner struct{}
 
+// Request contains the parameters for running an external plugin.
 type Request struct {
 	Path     string
 	Name     string
@@ -23,6 +25,7 @@ type Request struct {
 	Timeouts map[string]string
 }
 
+// Input is the JSON payload sent to external plugins on stdin.
 type Input struct {
 	Phase    model.Phase       `json:"phase"`
 	Job      model.JobContext  `json:"job_context"`
@@ -30,6 +33,7 @@ type Input struct {
 	Timeouts map[string]string `json:"timeouts,omitempty"`
 }
 
+// Run executes the plugin binary, passing a JSON request on stdin and decoding the JSON result from stdout.
 func (Runner) Run(ctx context.Context, req Request) (model.CheckResult, error) {
 	payload, err := json.Marshal(Input{
 		Phase:    req.Phase,

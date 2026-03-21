@@ -14,6 +14,8 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
+// Setup initializes OpenTelemetry trace and metric providers when SGNG_OTEL_STDOUT is enabled.
+// It returns a shutdown function that flushes and stops the providers.
 func Setup(ctx context.Context, serviceName string) (func(context.Context) error, error) {
 	if !enabled() {
 		return func(context.Context) error { return nil }, nil

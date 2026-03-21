@@ -2,15 +2,19 @@ package model
 
 import "errors"
 
+// Phase represents a Slurm job lifecycle phase (prolog or epilog).
 type Phase string
 
+// Supported lifecycle phases.
 const (
 	PhaseProlog Phase = "prolog"
 	PhaseEpilog Phase = "epilog"
 )
 
+// CheckStatus represents the outcome status of a health check plugin.
 type CheckStatus string
 
+// Possible check statuses returned by plugins.
 const (
 	StatusPass  CheckStatus = "pass"
 	StatusWarn  CheckStatus = "warn"
@@ -18,8 +22,10 @@ const (
 	StatusError CheckStatus = "error"
 )
 
+// FailureDomain categorizes the infrastructure component that failed.
 type FailureDomain string
 
+// Known failure domains.
 const (
 	DomainUnknown      FailureDomain = "unknown"
 	DomainGPU          FailureDomain = "gpu"
@@ -29,8 +35,10 @@ const (
 	DomainFilesystem   FailureDomain = "filesystem"
 )
 
+// Verdict represents the final decision produced by the policy evaluator.
 type Verdict string
 
+// Supported verdicts, ordered from least to most severe.
 const (
 	VerdictAllow             Verdict = "allow"
 	VerdictAllowAlert        Verdict = "allow_alert"
@@ -39,8 +47,10 @@ const (
 	VerdictBlockDrainRequeue Verdict = "block_drain_requeue"
 )
 
+// ErrDaemonUnavailable is returned when the guard daemon cannot be reached.
 var ErrDaemonUnavailable = errors.New("daemon unavailable")
 
+// JobContext holds Slurm job metadata passed to plugins and evaluations.
 type JobContext struct {
 	ID         string `json:"id,omitempty" yaml:"id,omitempty"`
 	NodeName   string `json:"node_name,omitempty" yaml:"node_name,omitempty"`
@@ -50,16 +60,19 @@ type JobContext struct {
 	SignalName string `json:"signal_name,omitempty" yaml:"signal_name,omitempty"`
 }
 
+// NodeContext holds the identity of the compute node being checked.
 type NodeContext struct {
 	Name string `json:"name,omitempty" yaml:"name,omitempty"`
 }
 
+// PluginSpec defines an external check plugin and the phases it runs in.
 type PluginSpec struct {
 	Name   string  `json:"name" yaml:"name"`
 	Path   string  `json:"path" yaml:"path"`
 	Phases []Phase `json:"phases,omitempty" yaml:"phases,omitempty"`
 }
 
+// CheckResult is the structured output returned by a check plugin.
 type CheckResult struct {
 	CheckName       string         `json:"check_name" yaml:"check_name"`
 	Status          CheckStatus    `json:"status" yaml:"status"`
@@ -70,6 +83,7 @@ type CheckResult struct {
 	StructuredCause string         `json:"structured_cause,omitempty" yaml:"structured_cause,omitempty"`
 }
 
+// EvaluationInput bundles the phase, job/node context, and check results for policy evaluation.
 type EvaluationInput struct {
 	Phase        Phase         `json:"phase"`
 	Job          JobContext    `json:"job_context"`
@@ -78,6 +92,7 @@ type EvaluationInput struct {
 	Policy       any           `json:"-"`
 }
 
+// EvaluationDecision is the verdict produced by the policy evaluator, including drain/requeue flags.
 type EvaluationDecision struct {
 	Verdict               Verdict       `json:"verdict"`
 	DrainReason           string        `json:"drain_reason,omitempty"`
@@ -89,6 +104,7 @@ type EvaluationDecision struct {
 	Results               []CheckResult `json:"results,omitempty"`
 }
 
+// ToActionDecision converts the evaluation decision into an ActionDecision scoped to the given job.
 func (d EvaluationDecision) ToActionDecision(job JobContext) ActionDecision {
 	return ActionDecision{
 		NodeName:      job.NodeName,
@@ -99,6 +115,7 @@ func (d EvaluationDecision) ToActionDecision(job JobContext) ActionDecision {
 	}
 }
 
+// ActionDecision describes the drain and requeue actions to apply via scontrol.
 type ActionDecision struct {
 	NodeName      string
 	JobID         string
@@ -107,6 +124,7 @@ type ActionDecision struct {
 	ShouldRequeue bool
 }
 
+// NotificationEvent is the payload sent to notification receivers after evaluation.
 type NotificationEvent struct {
 	ReceiverNames []string `json:"receiver_names,omitempty"`
 	NodeName      string   `json:"node_name,omitempty"`

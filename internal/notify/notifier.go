@@ -13,30 +13,36 @@ import (
 	"github.com/yuuki/slurm-gpu-node-guard/internal/model"
 )
 
+// Config holds the notification receiver definitions.
 type Config struct {
 	Receivers map[string]Receiver `yaml:"receivers"`
 }
 
+// Receiver defines a notification target, either a webhook URL or a command to execute.
 type Receiver struct {
 	Webhook WebhookConfig `yaml:"webhook"`
 	Command CommandConfig `yaml:"command"`
 }
 
+// WebhookConfig specifies an HTTP endpoint for webhook notifications.
 type WebhookConfig struct {
 	URL string `yaml:"url"`
 }
 
+// CommandConfig specifies an external command to run for notifications.
 type CommandConfig struct {
 	Path string   `yaml:"path"`
 	Args []string `yaml:"args"`
 }
 
+// Manager dispatches notification events to configured receivers.
 type Manager struct {
 	cfg    Config
 	client *http.Client
 	extra  map[string]string
 }
 
+// NewManager creates a Manager with the given configuration and optional extra environment variables.
 func NewManager(cfg Config, extraEnv map[string]string) *Manager {
 	return &Manager{
 		cfg:    cfg,
@@ -45,6 +51,7 @@ func NewManager(cfg Config, extraEnv map[string]string) *Manager {
 	}
 }
 
+// Notify sends the event to all named receivers, returning any combined errors.
 func (m *Manager) Notify(ctx context.Context, event model.NotificationEvent) error {
 	if len(event.ReceiverNames) == 0 {
 		return nil

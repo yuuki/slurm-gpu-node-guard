@@ -14,20 +14,24 @@ import (
 	"github.com/yuuki/slurm-gpu-node-guard/internal/model"
 )
 
+// Evaluator is the interface for running health-check evaluations.
 type Evaluator interface {
 	Evaluate(ctx context.Context, input model.EvaluationInput) (model.EvaluationDecision, error)
 }
 
+// Server exposes the evaluation API over a UNIX domain socket.
 type Server struct {
 	socketPath string
 	evaluator  Evaluator
 }
 
+// Client communicates with the guard daemon over its UNIX domain socket.
 type Client struct {
 	socketPath string
 	httpClient *http.Client
 }
 
+// NewServer creates a Server that listens on the given UNIX socket path.
 func NewServer(socketPath string, evaluator Evaluator) *Server {
 	return &Server{
 		socketPath: socketPath,
@@ -35,6 +39,7 @@ func NewServer(socketPath string, evaluator Evaluator) *Server {
 	}
 }
 
+// NewClient creates a Client that connects to the daemon at the given UNIX socket path.
 func NewClient(socketPath string) *Client {
 	transport := &http.Transport{
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
@@ -48,6 +53,7 @@ func NewClient(socketPath string) *Client {
 	}
 }
 
+// Run starts the HTTP server on the UNIX socket and blocks until the context is cancelled.
 func (s *Server) Run(ctx context.Context) error {
 	if err := os.MkdirAll(filepath.Dir(s.socketPath), 0o755); err != nil {
 		return fmt.Errorf("create socket dir: %w", err)
@@ -100,6 +106,7 @@ func (s *Server) Run(ctx context.Context) error {
 	return nil
 }
 
+// Evaluate sends an evaluation request to the daemon and returns the decision.
 func (c *Client) Evaluate(ctx context.Context, input model.EvaluationInput) (model.EvaluationDecision, error) {
 	payload, err := json.Marshal(input)
 	if err != nil {

@@ -16,6 +16,7 @@ import (
 	"github.com/yuuki/slurm-gpu-node-guard/internal/policy"
 )
 
+// Engine runs check plugins concurrently and evaluates results against a policy.
 type Engine struct {
 	policy  *policy.Policy
 	plugins []model.PluginSpec
@@ -24,6 +25,7 @@ type Engine struct {
 	counter metric.Int64Counter
 }
 
+// New creates an Engine with the given policy and plugin specifications.
 func New(p *policy.Policy, plugins []model.PluginSpec) (*Engine, error) {
 	meter := otel.Meter("slurm-gpu-node-guard/engine")
 	counter, err := meter.Int64Counter("slurm_gpu_node_guard_checks_total")
@@ -39,6 +41,7 @@ func New(p *policy.Policy, plugins []model.PluginSpec) (*Engine, error) {
 	}, nil
 }
 
+// Evaluate runs plugins (if no pre-supplied results) and applies the policy to produce a decision.
 func (e *Engine) Evaluate(ctx context.Context, input model.EvaluationInput) (model.EvaluationDecision, error) {
 	ctx, span := e.tracer.Start(ctx, "engine.evaluate", trace.WithAttributes(attribute.String("phase", string(input.Phase))))
 	defer span.End()
@@ -61,6 +64,7 @@ func (e *Engine) Evaluate(ctx context.Context, input model.EvaluationInput) (mod
 	return decision, nil
 }
 
+// RunChecks executes all plugins matching the given phase concurrently and collects their results.
 func (e *Engine) RunChecks(ctx context.Context, phase model.Phase, job model.JobContext, node model.NodeContext) ([]model.CheckResult, error) {
 	selected := make([]model.PluginSpec, 0, len(e.plugins))
 	for _, spec := range e.plugins {

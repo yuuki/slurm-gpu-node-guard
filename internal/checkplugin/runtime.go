@@ -13,12 +13,15 @@ import (
 	"github.com/yuuki/slurm-gpu-node-guard/internal/plugin"
 )
 
+// CommandRunner abstracts external command execution for testability.
 type CommandRunner interface {
 	Run(ctx context.Context, name string, args ...string) (stdout string, stderr string, err error)
 }
 
+// ExecRunner implements CommandRunner by calling os/exec.
 type ExecRunner struct{}
 
+// Run executes the named command with the given arguments and returns stdout, stderr, and any error.
 func (ExecRunner) Run(ctx context.Context, name string, args ...string) (string, string, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	var stdout strings.Builder
@@ -29,6 +32,8 @@ func (ExecRunner) Run(ctx context.Context, name string, args ...string) (string,
 	return stdout.String(), stderr.String(), err
 }
 
+// Run is the main entry point for check plugin binaries. It reads a JSON request from stdin,
+// invokes the checker function, and writes the JSON result to stdout.
 func Run(checkName string, stdin io.Reader, stdout io.Writer, checker func(context.Context, plugin.Input) model.CheckResult) int {
 	var req plugin.Input
 	if err := json.NewDecoder(stdin).Decode(&req); err != nil {
@@ -81,6 +86,7 @@ func writeResult(stdout io.Writer, result model.CheckResult) int {
 	return 0
 }
 
+// CommandErrorSummary returns stderr if non-empty, otherwise the error message.
 func CommandErrorSummary(stderr string, err error) string {
 	stderr = strings.TrimSpace(stderr)
 	if stderr != "" {
@@ -92,6 +98,7 @@ func CommandErrorSummary(stderr string, err error) string {
 	return err.Error()
 }
 
+// ValueAfterColon extracts and trims the value after the first colon in a "Key: Value" line.
 func ValueAfterColon(line string) string {
 	parts := strings.SplitN(line, ":", 2)
 	if len(parts) != 2 {

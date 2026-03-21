@@ -11,17 +11,21 @@ import (
 	"github.com/yuuki/slurm-gpu-node-guard/internal/model"
 )
 
+// ErrAlreadyDone indicates the drain or requeue action was already applied (idempotent).
 var ErrAlreadyDone = errors.New("already applied")
 
+// Executor abstracts Slurm scontrol operations for drain and requeue.
 type Executor interface {
 	DrainNode(ctx context.Context, nodeName string, reason string) error
 	RequeueJob(ctx context.Context, jobID string) error
 }
 
+// CommandExecutor implements Executor by shelling out to scontrol.
 type CommandExecutor struct {
 	CommandPath string
 }
 
+// ApplyDecision executes drain and/or requeue actions based on the given decision.
 func ApplyDecision(ctx context.Context, exec Executor, decision model.ActionDecision) error {
 	var errs []error
 	if decision.ShouldDrain {
@@ -37,6 +41,7 @@ func ApplyDecision(ctx context.Context, exec Executor, decision model.ActionDeci
 	return errors.Join(errs...)
 }
 
+// DrainNode sets the named node to DRAIN state via scontrol.
 func (c CommandExecutor) DrainNode(ctx context.Context, nodeName string, reason string) error {
 	_, stderr, err := c.run(ctx, "update", fmt.Sprintf("NodeName=%s", nodeName), "State=DRAIN", fmt.Sprintf("Reason=%s", reason))
 	if err != nil {
@@ -45,6 +50,7 @@ func (c CommandExecutor) DrainNode(ctx context.Context, nodeName string, reason 
 	return nil
 }
 
+// RequeueJob requeues the specified job via scontrol.
 func (c CommandExecutor) RequeueJob(ctx context.Context, jobID string) error {
 	_, stderr, err := c.run(ctx, "requeue", jobID)
 	if err != nil {

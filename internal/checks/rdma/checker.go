@@ -10,12 +10,15 @@ import (
 	"github.com/yuuki/slurm-gpu-node-guard/internal/plugin"
 )
 
+// CheckName is the identifier for the RDMA link health check plugin.
 const CheckName = "rdma-link"
 
+// Checker verifies RDMA/InfiniBand port status via ibstat.
 type Checker struct {
 	Runner checkplugin.CommandRunner
 }
 
+// Check runs RDMA health checks and returns a CheckResult indicating pass, warn, fail, or error.
 func (c Checker) Check(ctx context.Context, _ plugin.Input) model.CheckResult {
 	runner := c.Runner
 	if runner == nil {

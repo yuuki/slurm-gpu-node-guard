@@ -9,11 +9,13 @@ import (
 	"github.com/yuuki/slurm-gpu-node-guard/internal/model"
 )
 
+// Policy defines per-phase timeouts and per-failure-domain verdict rules.
 type Policy struct {
 	CheckTimeouts map[model.Phase]string               `yaml:"check_timeouts"`
 	Domains       map[model.FailureDomain]DomainPolicy `yaml:"domains"`
 }
 
+// DomainPolicy configures how a specific failure domain maps check results to verdicts.
 type DomainPolicy struct {
 	Severity              string                        `yaml:"severity"`
 	RequireInfraEvidence  bool                          `yaml:"require_infra_evidence"`
@@ -23,6 +25,7 @@ type DomainPolicy struct {
 	NotificationReceivers []string                      `yaml:"notification_receivers"`
 }
 
+// Evaluate applies the policy to the given check results and returns the highest-priority verdict.
 func Evaluate(input model.EvaluationInput) (model.EvaluationDecision, error) {
 	p, err := coercePolicy(input.Policy)
 	if err != nil {

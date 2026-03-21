@@ -14,6 +14,7 @@ import (
 
 const defaultSocketPath = "/tmp/slurm-gpu-node-guard.sock"
 
+// Config is the top-level configuration loaded from a YAML policy file.
 type Config struct {
 	SocketPath    string             `yaml:"socket_path"`
 	Plugins       []model.PluginSpec `yaml:"plugins"`
@@ -29,6 +30,7 @@ type rawConfig struct {
 	Notifications notify.Config                               `yaml:"notifications"`
 }
 
+// Load reads and parses a YAML configuration file from the given path.
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -55,6 +57,7 @@ func Load(path string) (*Config, error) {
 	return cfg, nil
 }
 
+// PhaseTimeout returns the configured timeout for the given phase, or fallback if unset or invalid.
 func (c *Config) PhaseTimeout(phase model.Phase, fallback time.Duration) time.Duration {
 	raw := c.Policy.CheckTimeouts[phase]
 	if raw == "" {

@@ -10,12 +10,15 @@ import (
 	"github.com/yuuki/slurm-gpu-node-guard/internal/plugin"
 )
 
+// CheckName is the identifier for the GPU health check plugin.
 const CheckName = "gpu-presence"
 
+// Checker verifies GPU presence and NVLink/NVSwitch fabric health via nvidia-smi.
 type Checker struct {
 	Runner checkplugin.CommandRunner
 }
 
+// Check runs GPU health checks and returns a CheckResult indicating pass, warn, fail, or error.
 func (c Checker) Check(ctx context.Context, _ plugin.Input) model.CheckResult {
 	runner := c.Runner
 	if runner == nil {
