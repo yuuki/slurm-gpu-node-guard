@@ -100,7 +100,7 @@ func (e *Engine) RunChecks(ctx context.Context, phase model.Phase, job model.Job
 	for range selected {
 		item := <-ch
 		if item.err != nil {
-			return nil, item.err
+			continue
 		}
 		e.counter.Add(ctx, 1, metric.WithAttributes(
 			attribute.String("check_name", item.result.CheckName),
