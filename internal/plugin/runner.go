@@ -17,29 +17,32 @@ type Runner struct{}
 
 // Request contains the parameters for running an external plugin.
 type Request struct {
-	Path     string
-	Name     string
-	Phase    model.Phase
-	Job      model.JobContext
-	Node     model.NodeContext
-	Timeouts map[string]string
+	Path         string
+	Name         string
+	Phase        model.Phase
+	Job          model.JobContext
+	Node         model.NodeContext
+	Timeouts     map[string]string
+	PluginConfig map[string]any
 }
 
 // Input is the JSON payload sent to external plugins on stdin.
 type Input struct {
-	Phase    model.Phase       `json:"phase"`
-	Job      model.JobContext  `json:"job_context"`
-	Node     model.NodeContext `json:"node_context"`
-	Timeouts map[string]string `json:"timeouts,omitempty"`
+	Phase        model.Phase       `json:"phase"`
+	Job          model.JobContext  `json:"job_context"`
+	Node         model.NodeContext `json:"node_context"`
+	Timeouts     map[string]string `json:"timeouts,omitempty"`
+	PluginConfig map[string]any    `json:"plugin_config,omitempty"`
 }
 
 // Run executes the plugin binary, passing a JSON request on stdin and decoding the JSON result from stdout.
 func (Runner) Run(ctx context.Context, req Request) (model.CheckResult, error) {
 	payload, err := json.Marshal(Input{
-		Phase:    req.Phase,
-		Job:      req.Job,
-		Node:     req.Node,
-		Timeouts: req.Timeouts,
+		Phase:        req.Phase,
+		Job:          req.Job,
+		Node:         req.Node,
+		Timeouts:     req.Timeouts,
+		PluginConfig: req.PluginConfig,
 	})
 	if err != nil {
 		return errorResult(req, fmt.Sprintf("marshal plugin input: %v", err)), nil

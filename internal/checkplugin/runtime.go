@@ -106,3 +106,19 @@ func ValueAfterColon(line string) string {
 	}
 	return strings.TrimSpace(parts[1])
 }
+
+// DecodeConfig converts a generic plugin_config map into a typed configuration struct.
+func DecodeConfig[T any](raw map[string]any) (T, error) {
+	var cfg T
+	if len(raw) == 0 {
+		return cfg, nil
+	}
+	data, err := json.Marshal(raw)
+	if err != nil {
+		return cfg, fmt.Errorf("marshal plugin config: %w", err)
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return cfg, fmt.Errorf("decode plugin config: %w", err)
+	}
+	return cfg, nil
+}

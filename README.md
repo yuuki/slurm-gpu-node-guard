@@ -15,7 +15,10 @@
 - `cmd/guardctl`: `prolog`, `epilog`, `check run`, `report event`
 - `cmd/guardd`: Local evaluation API over a UNIX domain socket
 - `cmd/guard-plugin-gpu`: External GPU health plugin using `nvidia-smi`
+- `cmd/guard-plugin-gpu-errors`: External GPU error plugin using `nvidia-smi -q -x` and `journalctl`
 - `cmd/guard-plugin-rdma`: External RDMA health plugin using `ibstat`
+- `cmd/guard-plugin-filesystem`: External filesystem health plugin using `findmnt`, `stat`, and `journalctl`
+- `cmd/guard-plugin-service`: External service health plugin using `systemctl`
 - `internal/policy`: Maps `pass|warn|fail|error` to verdicts
 - `internal/plugin`: External plugin JSON contract
 - `internal/slurm`: `drain`/`requeue` via `scontrol`
@@ -35,6 +38,9 @@ Plugins receive a JSON request on stdin:
   "node_context": {
     "name": "gpu-a01"
   },
+  "plugin_config": {
+    "required_mounts": ["/home", "/datasets"]
+  },
   "timeouts": {
     "prolog": "1.5s"
   }
@@ -45,12 +51,12 @@ Plugins return a JSON response on stdout:
 
 ```json
 {
-  "check_name": "gpu-presence",
+  "check_name": "filesystem-health",
   "status": "fail",
-  "failure_domain": "gpu",
+  "failure_domain": "filesystem",
   "infra_evidence": true,
-  "summary": "GPU not accessible",
-  "structured_cause": "gpu_missing"
+  "summary": "required mount missing: /datasets",
+  "structured_cause": "mount_missing"
 }
 ```
 
@@ -72,7 +78,10 @@ install -d /usr/local/libexec/slurm-gpu-node-guard
 go build -o /usr/local/bin/guardctl ./cmd/guardctl
 go build -o /usr/local/bin/guardd ./cmd/guardd
 go build -o /usr/local/libexec/slurm-gpu-node-guard/guard-plugin-gpu ./cmd/guard-plugin-gpu
+go build -o /usr/local/libexec/slurm-gpu-node-guard/guard-plugin-gpu-errors ./cmd/guard-plugin-gpu-errors
 go build -o /usr/local/libexec/slurm-gpu-node-guard/guard-plugin-rdma ./cmd/guard-plugin-rdma
+go build -o /usr/local/libexec/slurm-gpu-node-guard/guard-plugin-filesystem ./cmd/guard-plugin-filesystem
+go build -o /usr/local/libexec/slurm-gpu-node-guard/guard-plugin-service ./cmd/guard-plugin-service
 
 guardd -config ./configs/policy.example.yaml
 guardctl prolog -config ./configs/policy.example.yaml

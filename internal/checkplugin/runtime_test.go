@@ -27,3 +27,31 @@ func TestRunWritesStructuredErrorForInvalidRequest(t *testing.T) {
 		t.Fatalf("expected invalid_request cause, got %q", stdout.String())
 	}
 }
+
+func TestRunPassesPluginConfigToChecker(t *testing.T) {
+	var stdout bytes.Buffer
+
+	exitCode := Run("guard-plugin-gpu", strings.NewReader(`{
+		"phase": "prolog",
+		"plugin_config": {
+			"required_services": ["slurmd", "munged"],
+			"kernel_log_lookback": "5m"
+		}
+	}`), &stdout, func(_ context.Context, input plugin.Input) model.CheckResult {
+		if input.PluginConfig["kernel_log_lookback"] != "5m" {
+			t.Fatalf("unexpected plugin config: %+v", input.PluginConfig)
+		}
+		services, ok := input.PluginConfig["required_services"].([]any)
+		if !ok || len(services) != 2 {
+			t.Fatalf("unexpected required_services: %+v", input.PluginConfig)
+		}
+		return model.CheckResult{
+			CheckName:     "guard-plugin-gpu",
+			Status:        model.StatusPass,
+			FailureDomain: model.DomainGPU,
+		}
+	})
+	if exitCode != 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+}

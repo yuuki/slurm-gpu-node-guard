@@ -67,9 +67,10 @@ type NodeContext struct {
 
 // PluginSpec defines an external check plugin and the phases it runs in.
 type PluginSpec struct {
-	Name   string  `json:"name" yaml:"name"`
-	Path   string  `json:"path" yaml:"path"`
-	Phases []Phase `json:"phases,omitempty" yaml:"phases,omitempty"`
+	Name   string         `json:"name" yaml:"name"`
+	Path   string         `json:"path" yaml:"path"`
+	Phases []Phase        `json:"phases,omitempty" yaml:"phases,omitempty"`
+	Config map[string]any `json:"config,omitempty" yaml:"config,omitempty"`
 }
 
 // CheckResult is the structured output returned by a check plugin.

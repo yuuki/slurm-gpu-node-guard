@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -71,5 +72,43 @@ func TestRunnerTimeoutBecomesErrorResult(t *testing.T) {
 	}
 	if result.Status != model.StatusError {
 		t.Fatalf("expected timeout to map to error, got %+v", result)
+	}
+}
+
+func TestRunnerIncludesPluginConfigInRequest(t *testing.T) {
+	dir := t.TempDir()
+	payloadPath := filepath.Join(dir, "payload.json")
+	path := writePlugin(t, "#!/bin/sh\ncat >"+payloadPath+"\nprintf '%s' '{\"check_name\":\"capture\",\"status\":\"pass\",\"failure_domain\":\"runtime\"}'\n")
+
+	runner := Runner{}
+	result, err := runner.Run(context.Background(), Request{
+		Path:         path,
+		Phase:        model.PhaseProlog,
+		PluginConfig: map[string]any{"required_mounts": []string{"/home"}, "row_remap_fail_threshold": 2},
+	})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if result.Status != model.StatusPass {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	var payload map[string]any
+	data, err := os.ReadFile(payloadPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	config, ok := payload["plugin_config"].(map[string]any)
+	if !ok {
+		t.Fatalf("missing plugin_config in payload: %+v", payload)
+	}
+	if config["row_remap_fail_threshold"] != float64(2) {
+		t.Fatalf("unexpected numeric config: %+v", config)
+	}
+	mounts, ok := config["required_mounts"].([]any)
+	if !ok || len(mounts) != 1 || mounts[0] != "/home" {
+		t.Fatalf("unexpected required_mounts: %+v", config)
 	}
 }

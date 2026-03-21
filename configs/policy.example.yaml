@@ -4,9 +4,35 @@ plugins:
   - name: gpu-presence
     path: /usr/local/libexec/slurm-gpu-node-guard/guard-plugin-gpu
     phases: [prolog]
+  - name: gpu-errors
+    path: /usr/local/libexec/slurm-gpu-node-guard/guard-plugin-gpu-errors
+    phases: [prolog, epilog]
+    config:
+      xid_fail_codes: [48, 63, 79, 94]
+      xid_warn_codes: [31]
+      kernel_log_lookback: 5m
+      row_remap_fail_threshold: 0
+      require_ecc_healthy: true
   - name: rdma-link
     path: /usr/local/libexec/slurm-gpu-node-guard/guard-plugin-rdma
     phases: [prolog, epilog]
+  - name: filesystem-health
+    path: /usr/local/libexec/slurm-gpu-node-guard/guard-plugin-filesystem
+    phases: [prolog, epilog]
+    config:
+      required_mounts: [/home, /datasets]
+      mount_probe_paths: [/home, /datasets]
+      kernel_log_lookback: 5m
+      block_error_patterns:
+        - blk_update_request
+        - buffer i/o error
+        - ext4-fs error
+  - name: service-health
+    path: /usr/local/libexec/slurm-gpu-node-guard/guard-plugin-service
+    phases: [prolog, epilog]
+    config:
+      required_services: [slurmd, munged]
+      optional_services: [nvidia-fabricmanager]
 
 check_timeouts:
   prolog: 1500ms
@@ -35,6 +61,17 @@ domains:
       prolog: block_drain
       epilog: drain_after_job
     notification_receivers: [default]
+  interconnect:
+    severity: critical
+    require_infra_evidence: true
+    drain_reason_template: "interconnect unhealthy: {{ .Summary }}"
+    on_warn:
+      prolog: allow_alert
+      epilog: drain_after_job
+    on_fail:
+      prolog: block_drain_requeue
+      epilog: block_drain_requeue
+    notification_receivers: [default]
   filesystem:
     severity: critical
     require_infra_evidence: true
@@ -45,6 +82,17 @@ domains:
     on_fail:
       prolog: block_drain_requeue
       epilog: block_drain_requeue
+    notification_receivers: [default]
+  runtime:
+    severity: deferred
+    require_infra_evidence: true
+    drain_reason_template: "runtime unhealthy: {{ .Summary }}"
+    on_warn:
+      prolog: allow_alert
+      epilog: drain_after_job
+    on_fail:
+      prolog: block_drain
+      epilog: drain_after_job
     notification_receivers: [default]
 
 notifications:

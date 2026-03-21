@@ -87,11 +87,12 @@ func (e *Engine) RunChecks(ctx context.Context, phase model.Phase, job model.Job
 			runCtx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
 			result, err := e.runner.Run(runCtx, plugin.Request{
-				Path:  spec.Path,
-				Name:  spec.Name,
-				Phase: phase,
-				Job:   job,
-				Node:  node,
+				Path:         spec.Path,
+				Name:         spec.Name,
+				Phase:        phase,
+				Job:          job,
+				Node:         node,
+				PluginConfig: spec.Config,
 				Timeouts: map[string]string{
 					string(phase): timeout.String(),
 				},

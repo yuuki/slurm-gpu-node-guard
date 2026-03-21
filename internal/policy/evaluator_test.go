@@ -30,6 +30,22 @@ func samplePolicy() *Policy {
 				FailVerdictByPhase:    map[model.Phase]model.Verdict{model.PhaseProlog: model.VerdictBlockDrain, model.PhaseEpilog: model.VerdictDrainAfterJob},
 				NotificationReceivers: []string{"default"},
 			},
+			model.DomainInterconnect: {
+				Severity:              "critical",
+				RequireInfraEvidence:  true,
+				DrainReasonTemplate:   "interconnect unhealthy: {{ .Summary }}",
+				WarnVerdictByPhase:    map[model.Phase]model.Verdict{model.PhaseProlog: model.VerdictAllowAlert, model.PhaseEpilog: model.VerdictDrainAfterJob},
+				FailVerdictByPhase:    map[model.Phase]model.Verdict{model.PhaseProlog: model.VerdictBlockDrainRequeue, model.PhaseEpilog: model.VerdictBlockDrainRequeue},
+				NotificationReceivers: []string{"default"},
+			},
+			model.DomainRuntime: {
+				Severity:              "deferred",
+				RequireInfraEvidence:  true,
+				DrainReasonTemplate:   "runtime unhealthy: {{ .Summary }}",
+				WarnVerdictByPhase:    map[model.Phase]model.Verdict{model.PhaseProlog: model.VerdictAllowAlert, model.PhaseEpilog: model.VerdictDrainAfterJob},
+				FailVerdictByPhase:    map[model.Phase]model.Verdict{model.PhaseProlog: model.VerdictBlockDrain, model.PhaseEpilog: model.VerdictDrainAfterJob},
+				NotificationReceivers: []string{"default"},
+			},
 		},
 	}
 }
@@ -142,5 +158,64 @@ func TestEvaluatePluginErrorDowngradesToAllowAlert(t *testing.T) {
 	}
 	if decision.Verdict != model.VerdictAllowAlert {
 		t.Fatalf("expected %q, got %q", model.VerdictAllowAlert, decision.Verdict)
+	}
+}
+
+func TestEvaluatePrologGPUFailWinsOverPassingOverlap(t *testing.T) {
+	p := samplePolicy()
+	decision, err := Evaluate(model.EvaluationInput{
+		Phase: model.PhaseProlog,
+		CheckResults: []model.CheckResult{
+			{CheckName: "gpu-presence", Status: model.StatusPass, FailureDomain: model.DomainGPU, Summary: "gpu visible"},
+			{CheckName: "gpu-errors", Status: model.StatusFail, FailureDomain: model.DomainGPU, InfraEvidence: true, Summary: "XID 79"},
+		},
+		Policy: p,
+	})
+	if err != nil {
+		t.Fatalf("Evaluate returned error: %v", err)
+	}
+	if decision.Verdict != model.VerdictBlockDrainRequeue {
+		t.Fatalf("expected %q, got %q", model.VerdictBlockDrainRequeue, decision.Verdict)
+	}
+}
+
+func TestEvaluatePrologMultipleCriticalFailuresRemainStable(t *testing.T) {
+	p := samplePolicy()
+	decision, err := Evaluate(model.EvaluationInput{
+		Phase: model.PhaseProlog,
+		CheckResults: []model.CheckResult{
+			{CheckName: "gpu-presence", Status: model.StatusFail, FailureDomain: model.DomainGPU, InfraEvidence: true, Summary: "GPU not accessible"},
+			{CheckName: "gpu-errors", Status: model.StatusFail, FailureDomain: model.DomainInterconnect, InfraEvidence: true, Summary: "PCIe link error"},
+		},
+		Policy: p,
+	})
+	if err != nil {
+		t.Fatalf("Evaluate returned error: %v", err)
+	}
+	if decision.Verdict != model.VerdictBlockDrainRequeue {
+		t.Fatalf("expected %q, got %q", model.VerdictBlockDrainRequeue, decision.Verdict)
+	}
+	if decision.DrainReason == "" {
+		t.Fatalf("expected non-empty drain reason: %+v", decision)
+	}
+}
+
+func TestEvaluateRuntimeFailureDrainsWithoutRequeue(t *testing.T) {
+	p := samplePolicy()
+	decision, err := Evaluate(model.EvaluationInput{
+		Phase: model.PhaseProlog,
+		CheckResults: []model.CheckResult{
+			{CheckName: "service-health", Status: model.StatusFail, FailureDomain: model.DomainRuntime, InfraEvidence: true, Summary: "slurmd inactive"},
+		},
+		Policy: p,
+	})
+	if err != nil {
+		t.Fatalf("Evaluate returned error: %v", err)
+	}
+	if decision.Verdict != model.VerdictBlockDrain {
+		t.Fatalf("expected %q, got %q", model.VerdictBlockDrain, decision.Verdict)
+	}
+	if decision.ShouldRequeue {
+		t.Fatalf("expected runtime failure not to requeue: %+v", decision)
 	}
 }
