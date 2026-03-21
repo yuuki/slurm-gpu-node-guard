@@ -1,0 +1,85 @@
+version: 2
+
+builds:
+  - id: guardd
+    main: ./cmd/guardd
+    binary: guardd
+    goos: [linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}}
+
+  - id: guardctl
+    main: ./cmd/guardctl
+    binary: guardctl
+    goos: [linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}}
+
+  - id: guard-plugin-gpu
+    main: ./cmd/guard-plugin-gpu
+    binary: guard-plugin-gpu
+    goos: [linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+
+  - id: guard-plugin-gpu-errors
+    main: ./cmd/guard-plugin-gpu-errors
+    binary: guard-plugin-gpu-errors
+    goos: [linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+
+  - id: guard-plugin-rdma
+    main: ./cmd/guard-plugin-rdma
+    binary: guard-plugin-rdma
+    goos: [linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+
+  - id: guard-plugin-filesystem
+    main: ./cmd/guard-plugin-filesystem
+    binary: guard-plugin-filesystem
+    goos: [linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+
+  - id: guard-plugin-service
+    main: ./cmd/guard-plugin-service
+    binary: guard-plugin-service
+    goos: [linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - configs/policy.example.yaml
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: yuuki
+    name: slurm-gpu-node-guard
+  prerelease: auto

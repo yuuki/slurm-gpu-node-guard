@@ -5,3 +5,4 @@ guard-plugin-gpu
 guard-plugin-gpu-errors
 guard-plugin-rdma
 guard-plugin-service
+dist/
