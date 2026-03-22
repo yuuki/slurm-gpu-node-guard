@@ -90,6 +90,37 @@ guardctl check run -config ./configs/policy.example.yaml -phase prolog
 guardctl report event -config ./configs/policy.example.yaml --receivers default --summary "manual remediation"
 ```
 
+## Slurm Configuration
+
+Add the following to `slurm.conf` to invoke `guardctl` from Slurm's Prolog/Epilog hooks:
+
+```conf
+Prolog=/usr/local/bin/guardctl prolog -config /etc/slurm-gpu-node-guard/policy.yaml
+Epilog=/usr/local/bin/guardctl epilog -config /etc/slurm-gpu-node-guard/policy.yaml
+```
+
+If `guardd` is running on each node, `guardctl` will connect to it via the UNIX domain socket. If the daemon is unreachable, `guardctl` falls back to in-process evaluation (fail-open).
+
+To start `guardd` as a systemd service, create `/etc/systemd/system/guardd.service`:
+
+```ini
+[Unit]
+Description=slurm-gpu-node-guard daemon
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/guardd -config /etc/slurm-gpu-node-guard/policy.yaml
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now guardd
+```
+
 ## OpenTelemetry
 
 Set `SGNG_OTEL_STDOUT=true` to emit traces and metrics via the stdout exporter. When unset, no OTel provider is initialized.
