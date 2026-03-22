@@ -1,0 +1,10 @@
+[Unit]
+Description=slurm-gpu-node-guard daemon
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/guardd -config /etc/slurm-gpu-node-guard/policy.yaml
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

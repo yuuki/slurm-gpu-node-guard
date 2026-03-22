@@ -101,24 +101,12 @@ Epilog=/usr/local/bin/guardctl epilog -config /etc/slurm-gpu-node-guard/policy.y
 
 If `guardd` is running on each node, `guardctl` will connect to it via the UNIX domain socket. If the daemon is unreachable, `guardctl` falls back to in-process evaluation (fail-open).
 
-To start `guardd` as a systemd service, create `/etc/systemd/system/guardd.service`:
-
-```ini
-[Unit]
-Description=slurm-gpu-node-guard daemon
-After=network.target
-
-[Service]
-ExecStart=/usr/local/bin/guardd -config /etc/slurm-gpu-node-guard/policy.yaml
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
+To start `guardd` as a systemd service, install [configs/slurm-node-guardd.service](configs/slurm-node-guardd.service) and enable it:
 
 ```bash
+sudo cp configs/slurm-node-guardd.service /etc/systemd/system/slurm-node-guardd.service
 sudo systemctl daemon-reload
-sudo systemctl enable --now guardd
+sudo systemctl enable --now slurm-node-guardd
 ```
 
 ## OpenTelemetry

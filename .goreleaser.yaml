@@ -64,6 +64,7 @@ archives:
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
     files:
       - configs/policy.example.yaml
+      - configs/slurm-node-guardd.service
       - README.md
       - LICENSE
 
