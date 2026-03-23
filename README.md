@@ -10,6 +10,37 @@
 - **Fail-open**: When the daemon is unreachable or an internal error occurs, the system falls back to `allow_alert` so the guard itself never blocks the entire cluster.
 - **OSS extensibility**: Checks can be added as external executable plugins.
 
+## Architecture
+
+```
+  Slurm (Prolog/Epilog)
+        │
+        ▼
+  guardctl (CLI)
+        │ UNIX socket (fail-open: falls back to in-process if daemon is down)
+        ▼
+  guardd (Daemon)
+        │
+        ▼
+  engine.RunChecks()  ──── plugins run concurrently with per-phase timeout
+        │                   guard-plugin-gpu, -gpu-errors, -rdma,
+        │                   -filesystem, -service  (JSON stdin/stdout)
+        ▼
+  policy.Evaluate()   ──── highest-priority verdict wins
+        │
+        ├──▶  scontrol drain / requeue
+        └──▶  notify (webhook / command)
+```
+
+### Data Flow
+
+1. **Slurm → guardctl**: Slurm invokes `guardctl` as `Prolog` on job start and `Epilog` on job end.
+2. **guardctl → guardd (Daemon)**: `guardctl` first attempts to connect to the `guardd` daemon via a UNIX domain socket. If the daemon is unreachable, it falls back to in-process local evaluation following the **fail-open** principle.
+3. **Plugin execution**: `engine.RunChecks()` filters configured plugins by phase (prolog/epilog) and runs them **concurrently** with a per-phase timeout. Each plugin is launched as an independent subprocess, receiving JSON on stdin and returning results on stdout.
+4. **Policy evaluation**: `policy.Evaluate()` aggregates `CheckResult` from all plugins and determines the highest-priority verdict based on per-domain policy rules. `block_drain_requeue` is only applied when `infra_evidence=true`; otherwise it downgrades to `block_drain`.
+5. **Slurm actions**: Based on the verdict, `scontrol` drains the node and/or requeues the job. These operations are idempotent — "already drained" and "invalid job ID" are not treated as errors.
+6. **Notifications**: Alerts are dispatched via Webhook (HTTP POST) or command execution. Notification failures do not block the flow.
+
 ## Components
 
 - `cmd/guardctl`: `prolog`, `epilog`, `check run`, `report event`
