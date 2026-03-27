@@ -140,6 +140,35 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now slurm-node-guardd
 ```
 
+## Cluster Deployment
+
+### Compute Nodes
+
+All binaries, plugins, config, and the systemd unit must be deployed to every compute node.
+
+| File | Destination | Notes |
+|---|---|---|
+| `guardd` | `/usr/local/bin/guardd` | Resident daemon; managed by systemd |
+| `guardctl` | `/usr/local/bin/guardctl` | Invoked by Slurm Prolog/Epilog |
+| `guard-plugin-gpu` | `/usr/local/libexec/slurm-gpu-node-guard/` | Requires `nvidia-smi` |
+| `guard-plugin-gpu-errors` | `/usr/local/libexec/slurm-gpu-node-guard/` | Requires `nvidia-smi`, `journalctl` |
+| `guard-plugin-rdma` | `/usr/local/libexec/slurm-gpu-node-guard/` | Requires `ibstat` |
+| `guard-plugin-filesystem` | `/usr/local/libexec/slurm-gpu-node-guard/` | Requires `findmnt`, `stat`, `journalctl` |
+| `guard-plugin-service` | `/usr/local/libexec/slurm-gpu-node-guard/` | Requires `systemctl` |
+| `policy.yaml` | `/etc/slurm-gpu-node-guard/policy.yaml` | Policy and notification config |
+| `slurm-node-guardd.service` | `/etc/systemd/system/` | Starts `guardd` on boot |
+
+### Login Nodes
+
+Only `guardctl` and the policy config are needed, if operators run `guardctl report event` manually from a login node.
+
+| File | Destination | Notes |
+|---|---|---|
+| `guardctl` | `/usr/local/bin/guardctl` | Manual event reporting only |
+| `policy.yaml` | `/etc/slurm-gpu-node-guard/policy.yaml` | Required for notification receiver config |
+
+`guardd` and all plugins are **not required** on login nodes.
+
 ## OpenTelemetry
 
 Set `SGNG_OTEL_STDOUT=true` to emit traces and metrics via the stdout exporter. When unset, no OTel provider is initialized.
